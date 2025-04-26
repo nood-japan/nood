@@ -203,7 +203,9 @@ const STYLE_COLORS: Record<string, string> = {
               // 詳細取得（説明・口コミ）
               if (!matched && place.place_id) {
                 await new Promise<void>(resolve => {
-                  service.getDetails({ placeId: place.place_id, fields: ['editorial_summary', 'reviews', 'formatted_address', 'name'] }, (details: google.maps.places.PlaceResult, status: google.maps.places.PlacesServiceStatus) => {
+                  // place.place_id が undefined でないことを型ガードで保証
+if (typeof place.place_id === 'string') {
+  service.getDetails({ placeId: place.place_id, fields: ['editorial_summary', 'reviews', 'formatted_address', 'name'] }, (details: google.maps.places.PlaceResult, status: google.maps.places.PlacesServiceStatus) => {
                     if (status === google.maps.places.PlacesServiceStatus.OK && details) {
                       // editorial_summaryは型定義にないため、anyで参照
                       const overview = (details as any).editorial_summary?.overview;
@@ -217,8 +219,18 @@ const STYLE_COLORS: Record<string, string> = {
                       }
                       resolve();
                     }
-                  });
-                });
+                  } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
+                } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
               }
               if (matched) filtered.push(place);
             }
@@ -235,7 +247,12 @@ const STYLE_COLORS: Record<string, string> = {
                 position: place.geometry.location,
                 title: place.name,
                 icon: getPinSvg(pinColor),
-              });
+              } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
               // 店名ラベル（InfoWindow）はホバー/タップ時のみ表示
               let infoWindow: google.maps.InfoWindow | null = null;
               // @ts-ignore
@@ -244,24 +261,54 @@ const STYLE_COLORS: Record<string, string> = {
                 infoWindow = new google.maps.InfoWindow({
                   content: `<div style="font-size:14px;font-weight:bold;padding:2px 6px;background:#fff;border-radius:6px;border:none;box-shadow:none;white-space:nowrap;color:#222;">${place.name.replace(/"/g, '&quot;')}</div>`,
                   disableAutoPan: true,
-                });
+                } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
                 // PC: hover, モバイル: click/tap
                 marker.addListener('mouseover', () => {
                   infoWindow?.open({ map, anchor: marker, shouldFocus: false });
-                });
+                } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
                 marker.addListener('mouseout', () => {
                   infoWindow?.close();
-                });
+                } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
                 marker.addListener('click', () => {
                   infoWindow?.open({ map, anchor: marker, shouldFocus: false });
-                });
+                } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
                 // 地図クリック時にInfoWindowを閉じる
                 map.addListener('click', () => {
                   infoWindow?.close();
-                });
+                } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
               }
               markersRef.current.push(marker);
-            });
+            } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
             // クラスタの再適用: まず古いクラスタをクリア
             if (clustererRef.current) {
               clustererRef.current.clearMarkers();
@@ -272,14 +319,29 @@ const STYLE_COLORS: Record<string, string> = {
               clustererRef.current = new MarkerClusterer({
                 map,
                 markers: markersRef.current,
-              });
+              } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
             } else {
               // 2つ以下なら個別ピンのみ
               markersRef.current.forEach(marker => marker.setMap(map));
             }
-          });
+          } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
         }
-      });
+      } else {
+        // place_idがstring型でなければ即resolve
+        resolve();
+      }
+    });
+
     };
     // 地図移動やジャンル切り替えで再検索
     const idleListener = map.addListener('idle', searchRamen);

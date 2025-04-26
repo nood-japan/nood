@@ -201,11 +201,9 @@ const STYLE_COLORS: Record<string, string> = {
                 matched = true;
               }
               // 詳細取得（説明・口コミ）
-              if (!matched && place.place_id) {
+              if (!matched && typeof place.place_id === 'string') {
                 await new Promise<void>(resolve => {
-                  // place.place_id が undefined でないことを型ガードで保証
-if (typeof place.place_id === 'string') {
-  service.getDetails({ placeId: place.place_id, fields: ['editorial_summary', 'reviews', 'formatted_address', 'name'] }, (details: google.maps.places.PlaceResult, status: google.maps.places.PlacesServiceStatus) => {
+                  service.getDetails({ placeId: place.place_id, fields: ['editorial_summary', 'reviews', 'formatted_address', 'name'] }, (details: google.maps.places.PlaceResult, status: google.maps.places.PlacesServiceStatus) => {
                     if (status === google.maps.places.PlacesServiceStatus.OK && details) {
                       // editorial_summaryは型定義にないため、anyで参照
                       const overview = (details as any).editorial_summary?.overview;

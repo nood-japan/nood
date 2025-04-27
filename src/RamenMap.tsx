@@ -1,12 +1,12 @@
 /// <reference types="@types/google.maps" />
 
 import { useEffect, useRef, useState } from 'react';
-import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Box, ToggleButton, ToggleButtonGroup, Typography, TextField, IconButton, InputAdornment, CircularProgress } from '@mui/material';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 
 // 味フィルタ
 const FLAVORS = [
-  { label: '全て', value: '' },
+  { label: '未指定', value: '' },
   { label: '醤油', value: '醤油' },
   { label: '塩', value: '塩' },
   { label: '味噌', value: '味噌' },
@@ -17,12 +17,12 @@ const FLAVORS = [
 
 // 系統フィルタ
 const STYLES = [
-  { label: '全て', value: '' },
+  { label: '未指定', value: '' },
   { label: '家系', value: '家系' },
   { label: '二郎系', value: '二郎系' },
   { label: 'つけ麺', value: 'つけ麺' },
   { label: '油そば', value: '油そば' },
-  { label: 'タンメン', value: 'タンメン' },
+  { label: '湯麺', value: 'タンメン' },
   { label: '担々麺', value: '担々麺' },
 ];
 
@@ -34,9 +34,8 @@ const GENRES = [
 ];
 
 import React from 'react';
-import { PREFECTURES } from './prefectures';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
+
+
 
 // --- 系列キーワード取得ユーティリティ ---
 function getStyleKeywords(styleValue: string): string[] {
@@ -73,7 +72,6 @@ interface RamenMapFiltersProps {
   setStyleValue: (style: string) => void;
   flavor: string;
   setFlavor: (flavor: string) => void;
-  pref: { name: string; lat: number; lng: number; zoom: number };
 }
 
 export const RamenMapFilters: React.FC<RamenMapFiltersProps> = ({
@@ -81,107 +79,104 @@ export const RamenMapFilters: React.FC<RamenMapFiltersProps> = ({
   styleValue,
   setFlavor,
   setStyleValue,
-  pref,
 }) => {
   // RamenMapFilters内で外部のsearchRamenを直接呼べないため、親でsetFlavor/setStyleをラップし再検索を即時トリガーする仕組みを使う
   // ここではonChangeで渡されたsetFlavor/setStyleが即時反映される前提（useEffectで十分な場合はこのままでもOK）
 
   return (
-    <Box data-testid="filter-group" aria-label="フィルタ" sx={{ width: '100%' }}>
-      {/* --- 推定地域/現在地 表示 --- */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-        <Typography variant="subtitle2" color="text.secondary">
-          {`表示地域：${pref.name}`}
-        </Typography>
-      </Box>
+    <Box data-testid="filter-group" aria-label="フィルタ" sx={{ width: '100%', minHeight: 89, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', py: 2.6, px: 1.6, gap: 2.6/1.618, background: 'rgba(255,255,255,0.95)', borderRadius: 2.6, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
       {/* --- 味フィルタ --- */}
-      <Box data-testid="flavor-filter" sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1, zIndex: 10, position: 'relative' }}>
-        <ToggleButtonGroup
-          value={flavor}
-          exclusive
-          onChange={(_e, newFlavor) => { if (newFlavor !== undefined) setFlavor(newFlavor); }}
-          size="small"
-          disabled={styleValue !== ''}
-        >
-          {FLAVORS.map(f => (
-            <ToggleButton key={f.value} value={f.value}>
-              {f.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+      <Box data-testid="flavor-filter" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2.6/1.618, gap: 1.6, width: '100%' }}>
+        <Typography variant="subtitle2" sx={{ mr: 1.6, minWidth: 32, color: 'text.secondary', fontWeight: 700, flexShrink: 0 }}>味</Typography>
+        <Box sx={{ overflowX: 'auto', whiteSpace: 'nowrap', flex: 1, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+          <ToggleButtonGroup
+            value={flavor}
+            exclusive
+            onChange={(_e, newFlavor) => { if (newFlavor !== undefined) setFlavor(newFlavor); }}
+            size="small"
+            disabled={styleValue !== ''}
+          >
+            {FLAVORS.map(f => (
+              <ToggleButton key={f.value} value={f.value}>
+                {f.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
       </Box>
       {/* --- 系列フィルタ --- */}
-      <Box data-testid="style-filter" sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1, zIndex: 10, position: 'relative' }}>
-        <ToggleButtonGroup
-          value={styleValue}
-          exclusive
-          onChange={(_e, newStyle) => { if (newStyle !== undefined) setStyleValue(newStyle); }}
-          size="small"
-        >
-          {STYLES.map(s => (
-            <ToggleButton key={s.value} value={s.value}>
-              {s.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+      <Box data-testid="style-filter" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0, gap: 1.6, width: '100%' }}>
+        <Typography variant="subtitle2" sx={{ mr: 1.6, minWidth: 32, color: 'text.secondary', fontWeight: 700, flexShrink: 0 }}>系統</Typography>
+        <Box sx={{ overflowX: 'auto', whiteSpace: 'nowrap', flex: 1, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+          <ToggleButtonGroup
+            value={styleValue}
+            exclusive
+            onChange={(_e, newStyle) => { if (newStyle !== undefined) setStyleValue(newStyle); }}
+            size="small"
+          >
+            {STYLES.map(s => (
+              <ToggleButton key={s.value} value={s.value}>
+                {s.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
       </Box>
     </Box>
   );
 };
 
 type RamenMapProps = { height?: string, showOnlyMap?: boolean, searchKeyword?: string };
+
 export default function RamenMap({ height = '35vh', showOnlyMap = false, searchKeyword = '' }: RamenMapProps): any {
+  // --- 検索キーワードのローカル状態 ---
+  const [loading, setLoading] = useState(false);
+  const [localSearch, setLocalSearch] = useState<string>(searchKeyword || '');
   // --- フック・ロジックはここから ---
   const mapRef = useRef<HTMLDivElement>(null);
-  // 地域取得機能を削除し、東京都をデフォルト表示
-  const [pref] = useState<{ name: string; lat: number; lng: number; zoom: number }>(PREFECTURES.find(p => p.name === '東京都')!);
-  const [flavor, setFlavorState] = useState(FLAVORS[0].value);
-  const [styleValue, setStyleValueState] = useState(STYLES[0].value);
-
-  // フィルタ変更時に必ず即時再検索するためのラッパー
-  const triggerSearch = () => {
-    if (mapInstance.current && typeof google !== 'undefined') {
-      const map = mapInstance.current;
-      const service = new google.maps.places.PlacesService(map);
-      // searchRamen本体と同じロジックをここで呼ぶこともできるが、useEffect依存で十分な場合は省略可
-    }
-  };
-  // フィルタ変更時に即時再検索
-  const setFlavor = (f: string) => {
-    setFlavorState(f);
-  };
-  const setStyleValue = (s: string) => {
-    setStyleValueState(s);
-  };
-
-  const [genre, setGenre] = useState(GENRES[0].keyword);
+  // Google Mapsインスタンスとピン・クラスタ参照を必ず宣言
   const mapInstance = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const clustererRef = useRef<MarkerClusterer | null>(null);
+  // 初期地図位置はIPアドレスから取得、日本外や失敗時は日本全体
+  const JAPAN_CENTER = { lat: 36.2048, lng: 138.2529, zoom: 5 };
+  const [center, setCenter] = useState<{ lat: number; lng: number; zoom: number }>(JAPAN_CENTER);
 
+  const [flavor, setFlavorState] = useState(FLAVORS[0].value);
+  const [styleValue, setStyleValueState] = useState(STYLES[0].value);
 
-
-
-
-  // 地図中心・ズームもpref変更で必ず反映
+  // --- 初回のみIPアドレスから位置情報を取得しcenterをセット ---
   useEffect(() => {
-    if (!pref) return;
-    if (!mapInstance.current) return;
-    mapInstance.current.setCenter({ lat: pref.lat, lng: pref.lng });
-    mapInstance.current.setZoom(pref.zoom);
-  }, [pref]);
+    fetch('/api/ipgeo')
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          setCenter({ lat: data.latitude, lng: data.longitude, zoom: 13 });
+        } else {
+          setCenter(JAPAN_CENTER);
+        }
+      })
+      .catch(() => {
+        setCenter(JAPAN_CENTER);
+      });
+  }, []);
 
-  // フィルタやpref変更時にピン再検索
+  // centerが変わったときのみピン再描画（地名・都道府県・初期表示すべて対応）
   useEffect(() => {
     if (!window.google || !mapInstance.current) return;
+    // center更新時にGoogle Mapインスタンスへ反映
+    mapInstance.current.setCenter({ lat: center.lat, lng: center.lng });
+    mapInstance.current.setZoom(center.zoom);
     searchRamen();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pref, flavor, styleValue, searchKeyword]);
+  }, [center, flavor, styleValue]);
 
   // 非同期ピン再検索関数
   async function searchRamen() {
+    setLoading(true);
     const google = window.google as typeof window.google;
     const map = mapInstance.current!;
+
     const service = new google.maps.places.PlacesService(map);
 
     // 既存ピン削除
@@ -193,64 +188,15 @@ export default function RamenMap({ height = '35vh', showOnlyMap = false, searchK
     }
 
     // 1. 検索キーワードがあればGeocoderで地名・駅名・住所を検索
-    if (searchKeyword && searchKeyword.trim() !== '') {
-      const geocoder = new google.maps.Geocoder();
-      const geoResult = await new Promise<google.maps.GeocoderResult[] | null>(resolve => {
-        geocoder.geocode({ address: searchKeyword }, (results, status) => {
-          if (status === 'OK' && results && results.length > 0) {
-            resolve(results);
-          } else {
-            resolve(null);
-          }
-        });
-      });
-      if (geoResult && geoResult.length > 0) {
-        // 地名・駅名・ランドマーク等にヒット
-        const loc = geoResult[0].geometry.location;
-        map.setCenter(loc);
-        map.setZoom(16);
-        // ピンを一つだけ立てる
-        const marker = new google.maps.Marker({
-          position: loc,
-          map,
-          title: searchKeyword,
-          icon: getPinSvg('#D32F2F'),
-        });
-        markersRef.current = [marker];
-        return;
-      }
-      // 2. 飲食店名らしい場合はtextSearchでピン設置
-      await new Promise<void>(resolve => {
-        service.textSearch({ query: searchKeyword, type: 'restaurant' }, (results, status) => {
-          if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
-            const place = results[0];
-            if (place.geometry?.location) {
-              map.setCenter(place.geometry.location);
-              map.setZoom(17);
-              const marker = new google.maps.Marker({
-                position: place.geometry.location,
-                map,
-                title: place.name,
-                icon: getPinSvg('#D32F2F'),
-              });
-              markersRef.current = [marker];
-            }
-            resolve();
-          } else {
-            resolve();
-          }
-        });
-      });
-      if (markersRef.current.length > 0) return;
-      // どちらもヒットしなければ従来通り
-    }
+    // ここでは何もしない（centerの更新はユーザー操作時のみ）
 
     // 3. 従来通りnearbySearchでラーメン店一覧
     const bounds = map.getBounds();
-    if (!bounds) return;
-    const keyword = searchKeyword && searchKeyword.trim() !== ''
-      ? searchKeyword.trim() + ' ラーメン'
-      : `${styleValue ? styleValue + ' ' : (!styleValue && flavor ? flavor + ' ' : '')}ラーメン`.trim();
+    if (!bounds) {
+      setLoading(false);
+      return;
+    }
+    const keyword = `${styleValue ? styleValue + ' ' : (!styleValue && flavor ? flavor + ' ' : '')}ラーメン`.trim();
     service.nearbySearch({
       bounds,
       keyword,
@@ -258,12 +204,75 @@ export default function RamenMap({ height = '35vh', showOnlyMap = false, searchK
       rankBy: google.maps.places.RankBy.PROMINENCE,
     }, (results: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus) => {
       if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-        // ...従来のピン生成ロジック...
+        // InfoWindowは1つだけ生成し使い回す
+        const infoWindow = new google.maps.InfoWindow();
+        results.forEach(place => {
+          if (!place.geometry || !place.geometry.location) return;
+          // 系統・味の判定（name, types, vicinity, etc.から判別）
+          let pinColor = '#D32F2F'; // デフォルト赤
+          // 系統優先
+          for (const s of STYLES) {
+            if (s.value && place.name && place.name.includes(s.value)) {
+              pinColor = STYLE_COLORS[s.value] || pinColor;
+              break;
+            }
+          }
+          // 系統ヒットしなければ味で色分け
+          if (pinColor === '#D32F2F') {
+            for (const f of FLAVORS) {
+              if (f.value && place.name && place.name.includes(f.value)) {
+                pinColor = '#1976D2'; // 味噌・塩・醤油などは青系で仮設定（必要ならFLAVORSに色を追加してもOK）
+                break;
+              }
+            }
+          }
+          const marker = new google.maps.Marker({
+            map,
+            position: place.geometry.location,
+            title: place.name,
+            icon: getPinSvg(pinColor),
+          });
+          let infoWindow: google.maps.InfoWindow | null = null;
+          if (place.name) {
+            const rating = place.rating || null;
+const ratingCount = place.user_ratings_total || null;
+const scoreText = rating ? `<span style='font-size:13px;font-weight:500;color:#888;margin-left:4px;'>${Number(rating).toFixed(1)} ${'★'.repeat(Math.round(Number(rating)))}${'☆'.repeat(5-Math.round(Number(rating)))}</span>` : '';
+const ratingCountText = ratingCount ? `<span style='font-size:11px;color:#bbb;margin-left:2px;'>(${ratingCount})</span>` : '';
+infoWindow = new google.maps.InfoWindow({
+  content: `<div style="font-size:13px;font-weight:600;padding:4px 10px 3px 10px;background:#fff;border-radius:8px;border:none !important;box-shadow:none !important;white-space:nowrap;color:#222;min-width:0;display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;position:relative;">
+    <div style='font-size:13px;font-weight:700;margin-bottom:2px;'>${place.name.replace(/"/g, '&quot;')}</div>
+    ${scoreText}${ratingCountText}
+    <style>
+      .gm-ui-hover-effect{display:none!important;}
+      .gm-style-iw{border:none!important;box-shadow:none!important;}
+    </style>
+  </div>`,
+  disableAutoPan: true,
+});
+            marker.addListener('mouseover', () => {
+              infoWindow?.open({ map, anchor: marker, shouldFocus: false });
+            });
+            marker.addListener('mouseout', () => {
+              infoWindow?.close();
+            });
+            marker.addListener('click', () => {
+              infoWindow?.open({ map, anchor: marker, shouldFocus: false });
+            });
+            map.addListener('click', () => {
+              infoWindow?.close();
+            });
+          }
+          markersRef.current.push(marker);
+        });
+        // マーカークラスタリング
+        clustererRef.current = new MarkerClusterer({
+          map,
+          markers: markersRef.current,
+        });
       }
+      setLoading(false);
     });
   }
-
-
 
   // SVGピン生成
   const getPinSvg = (color: string) => {
@@ -278,233 +287,113 @@ export default function RamenMap({ height = '35vh', showOnlyMap = false, searchK
     } as google.maps.Symbol;
   };
 
-  // 初回のみMap生成
-  // 地図インスタンス生成は初回のみ
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    function initMapWhenReady() {
-      if (!mapRef.current) return;
-      if (!window.google) return;
-      const google = window.google as typeof window.google;
-      mapInstance.current = new google.maps.Map(mapRef.current, {
-        center: { lat: pref.lat, lng: pref.lng },
-        zoom: pref.zoom,
+    if (window.google && mapRef.current && !mapInstance.current) {
+      console.log('Google Mapsを初期化:', mapRef.current, center);
+      mapInstance.current = new window.google.maps.Map(mapRef.current, {
+        center: { lat: center.lat, lng: center.lng },
+        zoom: center.zoom,
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
+        zoomControl: true,
+        rotateControl: false,
+        scaleControl: false,
+        panControl: false,
+        disableDefaultUI: false,
+        mapId: undefined,
       });
-      // InfoWindowの閉じるボタンを非表示にするCSSを注入
-      const style = document.createElement('style');
-      style.innerHTML = '.gm-ui-hover-effect { display: none !important; }';
-      document.head.appendChild(style);
-      if (interval) clearInterval(interval);
     }
-    if (window.google && mapRef.current) {
-      initMapWhenReady();
-    } else {
-      interval = setInterval(() => {
-        if (window.google && mapRef.current) {
-          initMapWhenReady();
-        }
-      }, 200);
-    }
-    return () => { if (interval) clearInterval(interval); };
-
-
-  }, []);
-
-  // pref変更時は地図中心だけ変更
-  useEffect(() => {
-    if (!pref || !mapInstance.current) return;
-    mapInstance.current.setCenter({ lat: pref.lat, lng: pref.lng });
-    mapInstance.current.setZoom(pref.zoom);
-  }, [pref]);
-
-  // ジャンル変更・地図移動時にピン再検索
-  useEffect(() => {
-    if (!window.google || !mapInstance.current) return;
-    const google = window.google as typeof window.google;
-    const map = mapInstance.current;
-    const service = new google.maps.places.PlacesService(map);
-
-    function searchRamen() {
-      const bounds = map.getBounds();
-      if (!bounds) return;
-      // 既存ピン削除
-      markersRef.current.forEach(marker => marker.setMap(null));
-      markersRef.current = [];
-      if (clustererRef.current) {
-        clustererRef.current.clearMarkers();
-        clustererRef.current = null;
-      }
-      // 検索キーワード：propsのsearchKeywordがあればそれを優先
-      const keyword = searchKeyword && searchKeyword.trim() !== ''
-        ? searchKeyword.trim() + ' ラーメン'
-        : `${styleValue ? styleValue + ' ' : (!styleValue && flavor ? flavor + ' ' : '')}ラーメン`.trim();
-      service.nearbySearch({
-        bounds,
-        keyword,
-        type: 'restaurant',
-        rankBy: google.maps.places.RankBy.PROMINENCE,
-      }, (results: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-          const styleKeywords = getStyleKeywords(styleValue);
-          const filterByDetails = async (places: google.maps.places.PlaceResult[]) => {
-            if (!styleValue || styleKeywords.length === 0) return places;
-            const filtered: google.maps.places.PlaceResult[] = [];
-            // 最大20件まで
-            for (const place of places.slice(0, 20)) {
-              let matched = false;
-              // 店名判定
-              if (place.name && styleKeywords.some(w => place.name!.includes(w))) {
-                matched = true;
-              }
-              // 詳細取得（説明・口コミ）
-              if (!matched && typeof place.place_id === 'string' && place.place_id) {
-                await new Promise<void>(resolve => {
-                  service.getDetails(
-                    { placeId: place.place_id as string, fields: ['editorial_summary', 'reviews', 'formatted_address', 'name'] },
-                    (details: google.maps.places.PlaceResult | null, status: google.maps.places.PlacesServiceStatus) => {
-                      if (status === google.maps.places.PlacesServiceStatus.OK && details) {
-                        // editorial_summaryは型定義にないため、anyで参照
-                        const overview = (details as any).editorial_summary?.overview;
-                        const texts = [
-                          overview || '',
-                          details.formatted_address || '',
-                          ...(details.reviews?.map((r: google.maps.places.PlaceReview) => r.text || '') || [])
-                        ].filter(Boolean).join(' ');
-                        if (styleKeywords.some(w => texts.includes(w))) {
-                          matched = true;
-                        }
-                      }
-                      resolve();
-                    }
-                  );
-                });
-              }
-
-              if (matched) filtered.push(place);
-            }
-            return filtered;
-          };
-
-          filterByDetails(results).then(filteredResults => {
-            // --- クラスタリング用に一旦マーカー配列を生成 ---
-            const newMarkers: google.maps.Marker[] = [];
-            filteredResults.forEach(place => {
-              if (!place.geometry?.location) return;
-              // ピン色分岐: styleが全て以外ならその色、そうでなければ赤
-              // --- ピン色判定ロジック ---
-              const getPinColor = (place: google.maps.places.PlaceResult): string => {
-                // 系列フィルタが指定されている場合はその色
-                if (styleValue && STYLE_COLORS[styleValue]) return STYLE_COLORS[styleValue];
-                // 系列フィルタ「全て」の場合は店名から系列推定
-                const styleKeys = Object.keys(STYLE_COLORS).filter(k => STYLES.some(s=>s.value===k));
-                if (place.name) {
-                  for (const k of styleKeys) {
-                    if (k && k !== '' && place.name.includes(k)) return STYLE_COLORS[k];
-                  }
-                }
-                // 味フィルタが指定されている場合はその色
-                if (flavor && STYLE_COLORS[flavor]) return STYLE_COLORS[flavor];
-                // 店名から味推定
-                const flavorKeys = Object.keys(STYLE_COLORS).filter(k => FLAVORS.some(f=>f.value===k));
-                if (place.name) {
-                  for (const k of flavorKeys) {
-                    if (k && k !== '' && place.name.includes(k)) return STYLE_COLORS[k];
-                  }
-                }
-                // どれにも該当しなければ赤
-                return '#D32F2F';
-              };
-
-              const pinColor = getPinColor(place);
-              const marker = new google.maps.Marker({
-                position: place.geometry.location,
-                title: place.name,
-                icon: getPinSvg(pinColor),
-              });
-              let infoWindow: google.maps.InfoWindow | null = null;
-              if (place.name) {
-                infoWindow = new google.maps.InfoWindow({
-                  content: `<div styleValue="font-size:14px;font-weight:bold;padding:2px 6px;background:#fff;border-radius:6px;border:none;box-shadow:none;white-space:nowrap;color:#222;">${place.name.replace(/"/g, '&quot;')}</div>`,
-                  disableAutoPan: true,
-                });
-                // PC: hover, モバイル: click/tap
-                marker.addListener('mouseover', () => {
-                  infoWindow?.open({ map, anchor: marker, shouldFocus: false });
-                });
-                marker.addListener('mouseout', () => {
-                  infoWindow?.close();
-                });
-                marker.addListener('click', () => {
-                  infoWindow?.open({ map, anchor: marker, shouldFocus: false });
-                });
-                // 地図クリック時にInfoWindowを閉じる
-                map.addListener('click', () => {
-                  infoWindow?.close();
-                });
-              }
-              newMarkers.push(marker);
-            });
-            markersRef.current = newMarkers;
-            // --- クラスタリング ---
-            if (clustererRef.current) {
-              clustererRef.current.clearMarkers();
-              clustererRef.current = null;
-            }
-            // 3件以上でクラスタ表示
-            if (newMarkers.length >= 3) {
-              clustererRef.current = new MarkerClusterer({
-                map,
-                markers: newMarkers,
-                // clustererOptionsでデザイン変更も可
-              });
-            } else {
-              // 2件以下は個別表示
-              newMarkers.forEach(marker => marker.setMap(map));
-            }
-
-          });
-        }
-      });
-    };
-
-    // 地図移動やジャンル切り替えで再検索
-    const idleListener = map.addListener('idle', searchRamen);
-    // 初回も即検索
-    searchRamen();
-    return () => {
-      google.maps.event.removeListener(idleListener);
-      markersRef.current.forEach(marker => marker.setMap(null));
-      markersRef.current = [];
-    };
-  }, [flavor, styleValue]);
-
-  // useEffectよりも上で分岐することでreturnエラーを防止
-  if (showOnlyMap) {
-    return (
-      <Box data-testid="ramen-map-embed">
-        <div ref={mapRef} styleValue={{ width: '100%', height: height }} />
-      </Box>
-    );
-  }
+  }, [center, mapRef.current]);
 
   return (
     <Box sx={{ width: '100%' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, maxWidth: 400 }}>
+        <form style={{ width: '100%' }} onSubmit={e => { e.preventDefault();
+          if (localSearch && localSearch.trim() !== '') {
+            const google = window.google as typeof window.google;
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: localSearch }, (results, status) => {
+              if (status === 'OK' && results && results.length > 0) {
+                const loc = results[0].geometry.location;
+                setCenter({ lat: loc.lat(), lng: loc.lng(), zoom: 13 });
+                
+              }
+            });
+          }
+        }}>
+          <TextField
+            size="small"
+            fullWidth
+            variant="outlined"
+            placeholder="地名・駅名・店名などで検索"
+            value={localSearch}
+            onChange={e => setLocalSearch(e.target.value)}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="検索"
+                    onClick={() => {
+                      if (localSearch && localSearch.trim() !== '') {
+                        const google = window.google as typeof window.google;
+                        const geocoder = new google.maps.Geocoder();
+                        geocoder.geocode({ address: localSearch }, (results, status) => {
+                          if (status === 'OK' && results && results.length > 0) {
+                            const loc = results[0].geometry.location;
+                            setCenter({ lat: loc.lat(), lng: loc.lng(), zoom: 13 });
+
+                          }
+                        });
+                      }
+                    }}
+                    edge="end"
+                    size="small"
+                  >
+                    <span role="img" aria-label="検索">🔍</span>
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </form>
+      </Box>
+      <Box data-testid="ramen-map-section" sx={{ width: '100%', maxWidth: 900, mx: 'auto', mt: 2, position: 'relative' }}>
+
+        <div ref={mapRef} style={{ width: '100%', height: '56vw', maxHeight: 600, minHeight: 360, background: '#eee', aspectRatio: '16/9' }} onClick={() => {
+          if (window.google && mapRef.current && !mapInstance.current) {
+            console.log('【手動】Google Mapsを再初期化:', mapRef.current, center);
+            mapInstance.current = new window.google.maps.Map(mapRef.current, {
+              center: { lat: center.lat, lng: center.lng },
+              zoom: center.zoom,
+              mapTypeControl: false,
+              streetViewControl: false,
+              fullscreenControl: false,
+              zoomControl: true,
+              rotateControl: false,
+              scaleControl: false,
+              panControl: false,
+              disableDefaultUI: false,
+              mapId: undefined,
+            });
+          }
+        }} />
+        {loading && (
+          <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.5)' }}>
+            <CircularProgress />
+          </Box>
+        )}
+      </Box>
       {!showOnlyMap && (
         <RamenMapFilters
           flavor={flavor}
           styleValue={styleValue}
-          setFlavor={setFlavor}
-          setStyleValue={setStyleValue}
-          pref={pref}
+          setFlavor={setFlavorState}
+          setStyleValue={setStyleValueState}
+
+
         />
       )}
-      <Box data-testid="ramen-map-embed">
-        <div ref={mapRef} style={{ width: '100%', height: height }} />
-      </Box>
     </Box>
   );
-
 }

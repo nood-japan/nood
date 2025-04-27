@@ -38,12 +38,99 @@ import { PREFECTURES } from './prefectures';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 
-export default function RamenMap({ height = '35vh' }: { height?: string }): React.ReactElement {
-  const mapRef = useRef<HTMLDivElement>(null);
-  // 都道府県選択
-  const [pref, setPref] = useState<{ name: string; lat: number; lng: number; zoom: number }>(PREFECTURES.find(p => p.name === '沖縄県')!);
+// --- 系列キーワード取得ユーティリティ ---
+function getStyleKeywords(style: string): string[] {
+  const STYLE_KEYWORDS: Record<string, string[]> = {
+    '家系': ['家系', '吉村家', '豚骨醤油', 'ほうれん草', 'のり'],
+    '二郎系': ['二郎', 'ニンニク', 'ヤサイマシ', '極太麺', 'マシマシ'],
+    'つけ麺': ['つけ麺', '特製つけ麺'],
+    '油そば': ['油そば', 'まぜそば'],
+    'タンメン': ['タンメン'],
+    '担々麺': ['担々麺', '坦々麺', 'ごま', '辣油'],
+  };
+  return style && STYLE_KEYWORDS[style] ? STYLE_KEYWORDS[style] : style ? [style] : [];
+}
+// --- 系列ごとのピン色定義 ---
+const STYLE_COLORS: Record<string, string> = {
+  // 系列
+  '家系': '#43A047',      // 緑（家系はのり・ほうれん草のイメージ）
+  '二郎系': '#FFD600',    // 黄色（もやし・看板色）
+  'つけ麺': '#1976D2',    // 青（冷やし・水色系のイメージ）
+  '油そば': '#F57C00',    // オレンジ（油のイメージ）
+  'タンメン': '#4FC3F7',  // 水色
+  '担々麺': '#D32F2F',    // 赤（ラー油・辛味）
+  // 味
+  '味噌': '#8D6E63',      // 茶色
+  '塩': '#F5F5F5',        // 白系
+  '醤油': '#3E2723',      // こげ茶
+  '豚骨': '#FFF8E1',      // クリーム色
+  '魚介': '#1A237E',      // 紺色
+  '鶏白湯': '#FFF9C4',    // 薄黄色
+};
 
-  // 初回のみIPジオロケーションAPIで自動地域判定（pref依存を絶対に付けない！）
+interface RamenMapFiltersProps {
+  flavor: string;
+  style: string;
+  setFlavor: (flavor: string) => void;
+  setStyle: (style: string) => void;
+}
+export const RamenMapFilters: React.FC<RamenMapFiltersProps> = ({
+  flavor,
+  style,
+  setFlavor,
+  setStyle,
+}) => {
+  return (
+    <Box data-testid="filter-group" aria-label="フィルタ" sx={{ width: '100%' }}>
+      {/* --- 味フィルタ --- */}
+      <Box data-testid="flavor-filter" sx={{ display: 'flex', justifyContent: 'center', mb: 1, zIndex: 10, position: 'relative' }}>
+        <ToggleButtonGroup
+          value={flavor}
+          exclusive
+          onChange={(_e, newFlavor) => { if (newFlavor !== undefined) setFlavor(newFlavor); }}
+          size="small"
+          disabled={style !== ''}
+        >
+          {FLAVORS.map(f => (
+            <ToggleButton key={f.value} value={f.value}>
+              {f.label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Box>
+      {/* --- 系列フィルタ --- */}
+      <Box data-testid="style-filter" sx={{ display: 'flex', justifyContent: 'center', mb: 1, zIndex: 10, position: 'relative' }}>
+        <ToggleButtonGroup
+          value={style}
+          exclusive
+          onChange={(_e, newStyle) => { if (newStyle !== undefined) setStyle(newStyle); }}
+          size="small"
+        >
+          {STYLES.map(s => (
+            <ToggleButton key={s.value} value={s.value}>
+              {s.label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Box>
+    </Box>
+  );
+};
+
+export default function RamenMap({ height = '35vh', showOnlyMap = false }: { height?: string, showOnlyMap?: boolean }): React.ReactElement | null {
+  // --- フック・ロジックはここから ---
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [pref, setPref] = useState<{ name: string; lat: number; lng: number; zoom: number }>({
+    ...PREFECTURES.find(p => p.name === '沖縄県')!,
+    zoom: 14, // ズームしすぎ防止で少し引く
+  });
+  const [flavor, setFlavor] = useState(FLAVORS[0].value);
+  const [style, setStyle] = useState(STYLES[0].value);
+  const [genre, setGenre] = useState(GENRES[0].keyword);
+  const mapInstance = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
+  const clustererRef = useRef<MarkerClusterer | null>(null);
+
   useEffect(() => {
     let isFirst = true;
     if (!isFirst) return;
@@ -53,19 +140,17 @@ export default function RamenMap({ height = '35vh' }: { height?: string }): Reac
       .then(data => {
         console.log('IPジオロケーション結果:', data);
         if (data && data.latitude && data.longitude) {
-          // 都道府県名が取れればPREFECTURESから選択、なければ緯度経度で直接セット
           const prefMatch = PREFECTURES.find(p => data.region && (p.name === data.region || p.name.replace('県','') === data.region.replace('県','')));
           if (prefMatch) {
             setPref(prefMatch);
           } else {
-            setPref({ name: data.region || '推定エリア', lat: data.latitude, lng: data.longitude, zoom: 10 });
+            setPref({ name: data.region || '推定エリア', lat: data.latitude, lng: data.longitude, zoom: 14 });
           }
         }
       })
-      .catch(() => {/* 失敗時は何もしない（沖縄県fallback） */});
+      .catch(() => {/* 失敗時は何もしない */});
   }, []);
 
-  // 現在地ボタンハンドラ
   const handleGeolocation = () => {
     if (!navigator.geolocation) {
       alert('このブラウザは位置情報取得に対応していません');
@@ -85,36 +170,11 @@ export default function RamenMap({ height = '35vh' }: { height?: string }): Reac
       }
     );
   };
-  const [flavor, setFlavor] = useState(FLAVORS[0].value);
-  const [style, setStyle] = useState(STYLES[0].value);
-  const [genre, setGenre] = useState(GENRES[0].keyword);
-  const mapInstance = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<google.maps.Marker[]>([]);
-  const clustererRef = useRef<MarkerClusterer | null>(null);
 
-  // 系統ごとのイメージカラー
-  // 系列キーワード取得ユーティリティ
-function getStyleKeywords(style: string): string[] {
-  const STYLE_KEYWORDS: Record<string, string[]> = {
-    '家系': ['家系', '吉村家', '豚骨醤油', 'ほうれん草', 'のり'],
-    '二郎系': ['二郎', 'ニンニク', 'ヤサイマシ', '極太麺', 'マシマシ'],
-    'つけ麺': ['つけ麺', '特製つけ麺'],
-    '油そば': ['油そば', 'まぜそば'],
-    'タンメン': ['タンメン'],
-    '担々麺': ['担々麺', '坦々麺', 'ごま', '辣油'],
-  };
-  return style && STYLE_KEYWORDS[style] ? STYLE_KEYWORDS[style] : style ? [style] : [];
-}
-
-
-const STYLE_COLORS: Record<string, string> = {
-  '二郎系': '#FFD600', // 黄色
-  '家系': '#43A047',   // 緑
-  'つけ麺': '#1976D2', // 青
-  '油そば': '#FF9800', // オレンジ
-  'タンメン': '#00BCD4', // 水色
-  '担々麺': '#D32F2F', // 赤
-};
+  useEffect(() => {
+    // ...（地図描画・ピン処理などの既存ロジック）...
+    // この部分は元のロジックを維持
+  }, [pref, flavor, style]);
 
   // SVGピン生成
   const getPinSvg = (color: string) => {
@@ -202,27 +262,27 @@ const STYLE_COLORS: Record<string, string> = {
               }
               // 詳細取得（説明・口コミ）
               if (!matched && typeof place.place_id === 'string' && place.place_id) {
-  await new Promise<void>(resolve => {
-    service.getDetails(
-      { placeId: place.place_id, fields: ['editorial_summary', 'reviews', 'formatted_address', 'name'] },
-      (details: google.maps.places.PlaceResult, status: google.maps.places.PlacesServiceStatus) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && details) {
-          // editorial_summaryは型定義にないため、anyで参照
-          const overview = (details as any).editorial_summary?.overview;
-          const texts = [
-            overview || '',
-            details.formatted_address || '',
-            ...(details.reviews?.map((r: google.maps.places.PlaceReview) => r.text || '') || [])
-          ].filter(Boolean).join(' ');
-          if (styleKeywords.some(w => texts.includes(w))) {
-            matched = true;
-          }
-        }
-        resolve();
-      }
-    );
-  });
-}
+                await new Promise<void>(resolve => {
+                  service.getDetails(
+                    { placeId: place.place_id as string, fields: ['editorial_summary', 'reviews', 'formatted_address', 'name'] },
+                    (details: google.maps.places.PlaceResult | null, status: google.maps.places.PlacesServiceStatus) => {
+                      if (status === google.maps.places.PlacesServiceStatus.OK && details) {
+                        // editorial_summaryは型定義にないため、anyで参照
+                        const overview = (details as any).editorial_summary?.overview;
+                        const texts = [
+                          overview || '',
+                          details.formatted_address || '',
+                          ...(details.reviews?.map((r: google.maps.places.PlaceReview) => r.text || '') || [])
+                        ].filter(Boolean).join(' ');
+                        if (styleKeywords.some(w => texts.includes(w))) {
+                          matched = true;
+                        }
+                      }
+                      resolve();
+                    }
+                  );
+                });
+              }
 
               if (matched) filtered.push(place);
             }
@@ -230,111 +290,87 @@ const STYLE_COLORS: Record<string, string> = {
           };
 
           filterByDetails(results).then(filteredResults => {
+            // --- クラスタリング用に一旦マーカー配列を生成 ---
+            const newMarkers: google.maps.Marker[] = [];
             filteredResults.forEach(place => {
               if (!place.geometry?.location) return;
               // ピン色分岐: styleが全て以外ならその色、そうでなければ赤
-              const pinColor = style && STYLE_COLORS[style] ? STYLE_COLORS[style] : '#D32F2F';
+              // --- ピン色判定ロジック ---
+              const getPinColor = (place: google.maps.places.PlaceResult): string => {
+                // 系列フィルタが指定されている場合はその色
+                if (style && STYLE_COLORS[style]) return STYLE_COLORS[style];
+                // 系列フィルタ「全て」の場合は店名から系列推定
+                const styleKeys = Object.keys(STYLE_COLORS).filter(k => STYLES.some(s=>s.value===k));
+                if (place.name) {
+                  for (const k of styleKeys) {
+                    if (k && k !== '' && place.name.includes(k)) return STYLE_COLORS[k];
+                  }
+                }
+                // 味フィルタが指定されている場合はその色
+                if (flavor && STYLE_COLORS[flavor]) return STYLE_COLORS[flavor];
+                // 店名から味推定
+                const flavorKeys = Object.keys(STYLE_COLORS).filter(k => FLAVORS.some(f=>f.value===k));
+                if (place.name) {
+                  for (const k of flavorKeys) {
+                    if (k && k !== '' && place.name.includes(k)) return STYLE_COLORS[k];
+                  }
+                }
+                // どれにも該当しなければ赤
+                return '#D32F2F';
+              };
+
+              const pinColor = getPinColor(place);
               const marker = new google.maps.Marker({
-                map,
                 position: place.geometry.location,
                 title: place.name,
                 icon: getPinSvg(pinColor),
-              } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
-
-              // 店名ラベル（InfoWindow）はホバー/タップ時のみ表示
+              });
               let infoWindow: google.maps.InfoWindow | null = null;
-              // @ts-ignore
-
               if (place.name) {
                 infoWindow = new google.maps.InfoWindow({
                   content: `<div style="font-size:14px;font-weight:bold;padding:2px 6px;background:#fff;border-radius:6px;border:none;box-shadow:none;white-space:nowrap;color:#222;">${place.name.replace(/"/g, '&quot;')}</div>`,
                   disableAutoPan: true,
-                } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
-
+                });
                 // PC: hover, モバイル: click/tap
                 marker.addListener('mouseover', () => {
                   infoWindow?.open({ map, anchor: marker, shouldFocus: false });
-                } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
-
+                });
                 marker.addListener('mouseout', () => {
                   infoWindow?.close();
-                } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
-
+                });
                 marker.addListener('click', () => {
                   infoWindow?.open({ map, anchor: marker, shouldFocus: false });
-                } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
-
+                });
                 // 地図クリック時にInfoWindowを閉じる
                 map.addListener('click', () => {
                   infoWindow?.close();
-                } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
-
+                });
               }
-              markersRef.current.push(marker);
-            } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
-
-            // クラスタの再適用: まず古いクラスタをクリア
+              newMarkers.push(marker);
+            });
+            markersRef.current = newMarkers;
+            // --- クラスタリング ---
             if (clustererRef.current) {
               clustererRef.current.clearMarkers();
               clustererRef.current = null;
             }
-            if (markersRef.current.length > 2) {
-              // 3つ以上の時のみクラスタ化
+            // 3件以上でクラスタ表示
+            if (newMarkers.length >= 3) {
               clustererRef.current = new MarkerClusterer({
                 map,
-                markers: markersRef.current,
-              } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
-
+                markers: newMarkers,
+                // clustererOptionsでデザイン変更も可
+              });
             } else {
-              // 2つ以下なら個別ピンのみ
-              markersRef.current.forEach(marker => marker.setMap(map));
+              // 2件以下は個別表示
+              newMarkers.forEach(marker => marker.setMap(map));
             }
-          } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
 
+          });
         }
-      } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
-
+      });
     };
+
     // 地図移動やジャンル切り替えで再検索
     const idleListener = map.addListener('idle', searchRamen);
     // 初回も即検索
@@ -346,43 +382,27 @@ const STYLE_COLORS: Record<string, string> = {
     };
   }, [flavor, style]);
 
-
+  // useEffectよりも上で分岐することでreturnエラーを防止
+  if (showOnlyMap) {
+    return (
+      <Box data-testid="ramen-map-embed">
+        <div ref={mapRef} style={{ width: '100%', height: height }} />
+      </Box>
+    );
+  }
   return (
     <Box>
-      {/* 都道府県フィルタ */}
-
-      <div ref={mapRef} style={{ width: '100%', height: height }} />
-      {/* 味フィルタ */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1, zIndex: 10, position: 'relative' }}>
-        <ToggleButtonGroup
-          value={flavor}
-          exclusive
-          onChange={(_e, newFlavor) => { if (newFlavor !== undefined) setFlavor(newFlavor); }}
-          size="small"
-          disabled={style !== ''}
-        >
-          {FLAVORS.map(f => (
-            <ToggleButton key={f.value} value={f.value}>
-              {f.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-      </Box>
-      {/* 系統フィルタ */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1, zIndex: 10, position: 'relative' }}>
-        <ToggleButtonGroup
-          value={style}
-          exclusive
-          onChange={(_e, newStyle) => { if (newStyle !== undefined) setStyle(newStyle); }}
-          size="small"
-        >
-          {STYLES.map(s => (
-            <ToggleButton key={s.value} value={s.value}>
-              {s.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+      <RamenMapFilters
+        flavor={flavor}
+        style={style}
+        setFlavor={setFlavor}
+        setStyle={setStyle}
+      />
+      <Box data-testid="ramen-map-embed">
+        <div ref={mapRef} style={{ width: '100%', height: height }} />
       </Box>
     </Box>
   );
 }
+
+

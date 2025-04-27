@@ -1,0 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap');
+
+/* 見出し・タイトル用クラス */
+.heading-rounded {
+  font-family: 'M PLUS Rounded 1c', 'Noto Sans JP', sans-serif;
+}

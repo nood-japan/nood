@@ -6,12 +6,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <Box display="flex" flexDirection="column" minHeight="100vh">
       {/* ヘッダー */}
-      <AppBar position="static" color="primary">
+      <AppBar position="static" sx={{ background: 'linear-gradient(to right, #fff, #f2f2f2)' }} elevation={0}>
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" component="div" className="heading-rounded" sx={{ flexGrow: 1, color: '#222', fontFamily: '"M PLUS Rounded 1c", "Noto Sans JP", sans-serif', fontWeight: 700, justifyContent: 'center', textAlign: 'center', display: 'flex' }}>
             <Link href="/" passHref legacyBehavior>
-              <MuiLink color="inherit" underline="none">
-                NOOD 沖縄ラーメンマップ
+              <MuiLink color="inherit" underline="none" className="heading-rounded" sx={{ color: '#222', fontFamily: '"M PLUS Rounded 1c", "Noto Sans JP", sans-serif', fontWeight: 700 }}>
+                NOOD
               </MuiLink>
             </Link>
           </Typography>

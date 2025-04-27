@@ -122,15 +122,21 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import { Fab, Tooltip, Stack } from '@mui/material';
 
-export default function RamenMap({ height = '35vh', showOnlyMap = false }: { height?: string, showOnlyMap?: boolean }): React.ReactElement | null {
+interface RamenMapProps {
+  height?: string;
+  showOnlyMap?: boolean;
+  flavor?: string;
+  style?: string;
+}
+
+export default function RamenMap({ height = '35vh', showOnlyMap = false, flavor = '', style = '' }: RamenMapProps): React.ReactElement | null {
   // --- フック・ロジックはここから ---
   const mapRef = useRef<HTMLDivElement>(null);
   const [pref, setPref] = useState<{ name: string; lat: number; lng: number; zoom: number }>({
     ...PREFECTURES.find(p => p.name === '沖縄県')!,
     zoom: 14, // ズームしすぎ防止で少し引く
   });
-  const [flavor, setFlavor] = useState(FLAVORS[0].value);
-  const [style, setStyle] = useState(STYLES[0].value);
+
   const [genre, setGenre] = useState(GENRES[0].keyword);
   const mapInstance = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);

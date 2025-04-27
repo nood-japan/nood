@@ -28,7 +28,7 @@ export default function Home() {
         </Box>
         {/* 地図本体 */}
         <Box data-testid="ramen-map-section" sx={{ width: '100%' }}>
-          <RamenMap height="60vh" showOnlyMap />
+          <RamenMap height="60vh" showOnlyMap flavor={flavor} style={style} />
         </Box>
         <Link href="/ranking" passHref legacyBehavior>
           <Button variant="outlined" color="secondary" fullWidth>

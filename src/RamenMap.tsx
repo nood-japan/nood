@@ -117,6 +117,11 @@ export const RamenMapFilters: React.FC<RamenMapFiltersProps> = ({
   );
 };
 
+import MyLocationIcon from '@mui/icons-material/MyLocation';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
+import { Fab, Tooltip, Stack } from '@mui/material';
+
 export default function RamenMap({ height = '35vh', showOnlyMap = false }: { height?: string, showOnlyMap?: boolean }): React.ReactElement | null {
   // --- フック・ロジックはここから ---
   const mapRef = useRef<HTMLDivElement>(null);
@@ -385,8 +390,35 @@ export default function RamenMap({ height = '35vh', showOnlyMap = false }: { hei
   // useEffectよりも上で分岐することでreturnエラーを防止
   if (showOnlyMap) {
     return (
-      <Box data-testid="ramen-map-embed">
-        <div ref={mapRef} style={{ width: '100%', height: height }} />
+      <Box sx={{ position: 'relative', width: '100%', height }}>
+        {/* 地図本体 */}
+        <Box ref={mapRef} sx={{ width: '100%', height: '100%' }} />
+        {/* 地図操作ボタン群 */}
+        <Stack spacing={1} sx={{ position: 'absolute', bottom: 16, right: 16, zIndex: 20 }}>
+          <Tooltip title="現在地取得">
+            <Fab color="primary" size="small" onClick={handleGeolocation} aria-label="現在地取得">
+              <MyLocationIcon />
+            </Fab>
+          </Tooltip>
+          <Tooltip title="ズームイン">
+            <Fab color="secondary" size="small" onClick={() => {
+              if (mapInstance.current) {
+                mapInstance.current.setZoom(mapInstance.current.getZoom() + 1);
+              }
+            }} aria-label="ズームイン">
+              <AddIcon />
+            </Fab>
+          </Tooltip>
+          <Tooltip title="ズームアウト">
+            <Fab color="default" size="small" onClick={() => {
+              if (mapInstance.current) {
+                mapInstance.current.setZoom(mapInstance.current.getZoom() - 1);
+              }
+            }} aria-label="ズームアウト">
+              <RemoveIcon />
+            </Fab>
+          </Tooltip>
+        </Stack>
       </Box>
     );
   }

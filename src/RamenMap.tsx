@@ -203,28 +203,25 @@ const STYLE_COLORS: Record<string, string> = {
               // 詳細取得（説明・口コミ）
               if (!matched && typeof place.place_id === 'string' && place.place_id) {
                 await new Promise<void>(resolve => {
-                  service.getDetails({ placeId: place.place_id, fields: ['editorial_summary', 'reviews', 'formatted_address', 'name'] }, (details: google.maps.places.PlaceResult, status: google.maps.places.PlacesServiceStatus) => {
-                    if (status === google.maps.places.PlacesServiceStatus.OK && details) {
-                      // editorial_summaryは型定義にないため、anyで参照
-                      const overview = (details as any).editorial_summary?.overview;
-                      const texts = [
-  overview || '',
-  details.formatted_address || '',
-  ...(details.reviews?.map((r: google.maps.places.PlaceReview) => r.text || '') || [])
-].filter(Boolean).join(' ');
-                      if (styleKeywords.some(w => texts.includes(w))) {
-                        matched = true;
+                  service.getDetails(
+                    { placeId: place.place_id, fields: ['editorial_summary', 'reviews', 'formatted_address', 'name'] },
+                    (details: google.maps.places.PlaceResult, status: google.maps.places.PlacesServiceStatus) => {
+                      if (status === google.maps.places.PlacesServiceStatus.OK && details) {
+                        // editorial_summaryは型定義にないため、anyで参照
+                        const overview = (details as any).editorial_summary?.overview;
+                        const texts = [
+                          overview || '',
+                          details.formatted_address || '',
+                          ...(details.reviews?.map((r: google.maps.places.PlaceReview) => r.text || '') || [])
+                        ].filter(Boolean).join(' ');
+                        if (styleKeywords.some(w => texts.includes(w))) {
+                          matched = true;
+                        }
                       }
                       resolve();
                     }
-                  } else {
-        // place_idがstring型でなければ即resolve
-        resolve();
-      }
-    });
-
-                } else {
-        // place_idがstring型でなければ即resolve
+                  );
+                });
         resolve();
       }
     });

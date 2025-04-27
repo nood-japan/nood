@@ -4,7 +4,11 @@ import RamenMap from '../src/RamenMap';
 import { RamenMapFilters } from '../src/RamenMap';
 
 
+import { useState } from 'react';
+
 export default function Home() {
+  const [flavor, setFlavor] = useState('');
+  const [style, setStyle] = useState('');
   return (
     <Container maxWidth="sm" data-testid="top-container" sx={{
       py: { xs: 1, sm: 4 },
@@ -20,7 +24,7 @@ export default function Home() {
       >
         {/* フィルタ部分 */}
         <Box data-testid="ramen-filter-section" sx={{ width: '100%' }}>
-          <RamenMapFilters />
+          <RamenMapFilters flavor={flavor} style={style} setFlavor={setFlavor} setStyle={setStyle} />
         </Box>
         {/* 地図本体 */}
         <Box data-testid="ramen-map-section" sx={{ width: '100%' }}>
